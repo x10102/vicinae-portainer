@@ -11,9 +11,9 @@
   "icon": "portainer.png",
   "commands": [
     {
-      "name": "show-container-status",
-      "title": "Show container status",
-      "description": "Shows the status of a container",
+      "name": "list-containers",
+      "title": "List running containers",
+      "description": "List all currently running containers",
       "mode": "view"
     }
   ],
