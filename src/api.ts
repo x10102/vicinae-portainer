@@ -14,28 +14,45 @@ export interface IContainerInfo {
     Id: string
     Names: string[]
     State: ContainerState
+    Image: string
+    Status: string
 }
 
-async function login() {
-    fetch(`${prefs["api-url"]}/auth`, {
+async function login() : Promise<string> {
+    return fetch(`${prefs["api-url"]}/auth`, {
         "method": "POST",
         body: JSON.stringify({
             "Username": prefs["api-user"],
             "Password": prefs["api-password"]
         })
     }).then((res) => res.json())
-    .then(json => LocalStorage.setItem("portainer-jwt", json['jwt']))
-    .catch(e => {console.error("Login failed: " + e)})
+    .then(json => {LocalStorage.setItem("portainer-jwt", json['jwt']); return json['jwt'];})
+    .catch(e => {console.error("Login failed: " + e); return false;})
+}
+
+async function sendAPIRequest(endpoint: string, data: RequestInit, params: URLSearchParams | undefined) {
+    const sendRequest = (token: string) => {
+        const headers = new Headers(data.headers);
+        headers.set("Authorization", "Bearer " + token);
+        return fetch(`${prefs["api-url"]}${endpoint}?${(params ?? new URLSearchParams).toString()}`, {...data, headers})
+    }
+
+    const token = await LocalStorage.getItem<string>("portainer-jwt");
+    if(!token) await login();
+
+    let response = await sendRequest(await LocalStorage.getItem<string>("portainer-jwt") ?? await login());
+
+    if(response.status == 401) {
+        await login();
+    }
+
+    response = await sendRequest((await LocalStorage.getItem<string>("portainer-jwt"))!);
+    if(!response.ok) throw new Error("Portainer API request failed")
+    return response;
 }
 
 export async function getContainers() {
-    await login();
-    const params = new URLSearchParams({all: "true"}).toString()
-    let data = await fetch(`${prefs["api-url"]}/endpoints/2/docker/containers/json?${params}`, {
-        headers: {
-            Authorization: "Bearer " + await LocalStorage.getItem("portainer-jwt")
-        }
-    }
-    ).then(res => res.json())
+    const data = await sendAPIRequest('/endpoints/2/docker/containers/json', {}, new URLSearchParams({all: "true"}))
+    .then(res => res.json())
     return data as IContainerInfo[]
 }
