@@ -6,56 +6,78 @@ import {
 	Icon,
 	List,
 	showToast,
-	Toast,
+	Toast ,
 } from "@vicinae/api";
-
-import { ContainerState, getContainers, IContainerInfo } from "./api";
 import { useEffect, useState } from "react";
+import { getContainers } from "./api";
+import { ContainerState, type IContainerInfo } from "./api-types";
 
 function containerStatusTag(container: IContainerInfo) {
 	let color: Color = Color.PrimaryText;
 
-	switch(container.State) {
-		case ContainerState.Created: color = Color.Blue; break;
-		case ContainerState.Running: color = Color.Green; break;
-		case ContainerState.Restarting: color = Color.Orange; break;
-		case ContainerState.Paused: color = Color.Orange; break;
-		case ContainerState.Exited: color = Color.Red; break;
-		case ContainerState.Dead: color = Color.Red; break;
+	switch (container.State) {
+		case ContainerState.Created:
+			color = Color.Blue;
+			break;
+		case ContainerState.Running:
+			color = Color.Green;
+			break;
+		case ContainerState.Restarting:
+			color = Color.Orange;
+			break;
+		case ContainerState.Paused:
+			color = Color.Orange;
+			break;
+		case ContainerState.Exited:
+			color = Color.Red;
+			break;
+		case ContainerState.Dead:
+			color = Color.Red;
+			break;
 	}
 
-	return <Detail.Metadata.TagList.Item text={container.State} color={color}/>
+	return <Detail.Metadata.TagList.Item text={container.State} color={color} />;
 }
 
 export default function ListDetail() {
-
 	const [containerData, setContainerData] = useState<IContainerInfo[]>([]);
 	const [isLoading, setLoading] = useState(true);
 
 	useEffect(() => {
 		let cancelled = false;
 
-		(async () => {
-			const loadingToast = await showToast({title: "Loading containers...", style: Toast.Style.Animated})
+		const loadData = async () => {
+			const loadingToast = await showToast({
+				title: "Loading containers...",
+				style: Toast.Style.Animated,
+			});
 
 			try {
 				const data = await getContainers();
-				if(!cancelled) setContainerData(data);
+				if (!cancelled) setContainerData(data);
 				await loadingToast.hide();
-			} catch(e) {
+			} catch (e) {
 				console.error(e);
-				loadingToast.style = Toast.Style.Failure
-				loadingToast.title = `Failed to load containers (Check settings)`
+				loadingToast.style = Toast.Style.Failure;
+				loadingToast.title = `Failed to load containers (Check settings)`;
 			} finally {
-				if(!cancelled) setLoading(false);
+				if (!cancelled) setLoading(false);
 			}
-		})();
-		
-		return () => {cancelled = true};
-	}, [])
+		};
+
+		loadData().catch((e) => console.error(e));
+
+		return () => {
+			cancelled = true;
+		};
+	}, []);
 
 	return (
-		<List isLoading={isLoading} isShowingDetail searchBarPlaceholder={"Search containers..."}>
+		<List
+			isLoading={isLoading}
+			isShowingDetail
+			searchBarPlaceholder={"Search containers..."}
+		>
 			<List.Section title={"Containers"}>
 				{containerData.map((container, idx) => (
 					<List.Item
@@ -78,23 +100,19 @@ export default function ListDetail() {
 								<Action
 									title="View logs"
 									icon={Icon.Logstash}
-									onAction={() =>
-										showToast({ title: "Amogus" })
-									}
+									onAction={() => showToast({ title: "Amogus" })}
 								/>
 								<Action
 									title="Stop Container"
 									icon={Icon.Stop}
-									onAction={() =>
-										showToast({ title: "Stopping" })
-									}
+									onAction={() => showToast({ title: "Stopping" })}
 								/>
 								<Action
 									title="Kill Container"
 									icon={Icon.Stop}
-									onAction={() => {
-										getContainers()
-										showToast({ title: "Force stopping" })
+									onAction={async () => {
+										await getContainers();
+										showToast({ title: "Force stopping" });
 									}}
 								/>
 							</ActionPanel>

@@ -1,56 +1,68 @@
 {
-  "$schema": "https://raw.githubusercontent.com/vicinaehq/vicinae/refs/heads/main/extra/schemas/extension.json",
-  "name": "portainer",
-  "title": "Portainer",
-  "description": "Portainer API integration",
-  "categories": [],
-  "license": "MIT",
-  "author": "x10102",
-  "contributors": [],
-  "pastContributors": [],
-  "icon": "portainer.png",
-  "commands": [
-    {
-      "name": "list-containers",
-      "title": "List running containers",
-      "description": "List all currently running containers",
-      "mode": "view"
-    }
-  ],
-  "preferences": [
-    {
-      "name": "api-url",
-      "title": "API URL",
-      "description": "The API URL of your Portainer instance",
-      "type": "textfield",
-      "required": true
-    },
-    {
-      "name": "api-user",
-      "title": "API Username",
-      "description": "The username for your Portainer instance",
-      "type": "textfield",
-      "required": true
-    },
-    {
-      "name": "api-password",
-      "title": "API password",
-      "description": "The password for your Portainer instance",
-      "type": "password",
-      "required": true
-    }
-  ],
-  "scripts": {
-    "build": "vici build",
-    "dev": "vici develop",
-    "format": "biome format --write src",
-    "lint": "vici lint"
-  },
-  "dependencies": {
-    "@vicinae/api": "^0.29.1"
-  },
-  "devDependencies": {
-    "typescript": "^5.9.2",
-    "@biomejs/biome": "2.3.2"
-  }
+	"$schema": "https://raw.githubusercontent.com/vicinaehq/vicinae/refs/heads/main/extra/schemas/extension.json",
+	"name": "portainer",
+	"title": "Portainer",
+	"description": "Portainer API integration",
+	"categories": [],
+	"license": "MIT",
+	"author": "x10102",
+	"contributors": [],
+	"pastContributors": [],
+	"icon": "portainer.png",
+	"commands": [
+		{
+			"name": "list-containers",
+			"title": "List running containers",
+			"description": "List all currently running containers",
+			"mode": "view"
+		},
+		{
+			"name": "select-endpoint",
+			"title": "Select endpoint",
+			"description": "Select the default environment/endpoint",
+			"mode": "view",
+			"keywords": [
+				"env",
+				"environment",
+				"endpoint"
+			]
+		}
+	],
+	"preferences": [
+		{
+			"name": "api-url",
+			"title": "API URL",
+			"description": "The API URL of your Portainer instance",
+			"type": "textfield",
+			"required": true
+		},
+		{
+			"name": "api-user",
+			"title": "API Username",
+			"description": "The username for your Portainer instance",
+			"type": "textfield",
+			"required": true
+		},
+		{
+			"name": "api-password",
+			"title": "API password",
+			"description": "The password for your Portainer instance",
+			"type": "password",
+			"required": true
+		}
+	],
+	"scripts": {
+		"build": "vici build",
+		"dev": "vici develop",
+		"format": "biome format --write src",
+		"lint": "vici lint",
+		"forcefix": "biome check --write --unsafe"
+	},
+	"dependencies": {
+		"@vicinae/api": "^0.29.1"
+	},
+	"devDependencies": {
+		"typescript": "^5.9.2",
+		"@biomejs/biome": "2.3.2"
+	}
 }
