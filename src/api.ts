@@ -1,5 +1,5 @@
 import { LocalStorage } from "@vicinae/api";
-import type { IContainerInfo, IEndpointInfo } from "./api-types";
+import type { IAPIResponse, IContainerInfo, IEndpointInfo } from "./api-types";
 import { prefs } from "./prefs";
 
 async function login(): Promise<string> {
@@ -29,10 +29,15 @@ async function sendAPIRequest(
 	const sendRequest = (token: string) => {
 		const headers = new Headers(data.headers);
 		headers.set("Authorization", `Bearer ${token}`);
+		console.debug(
+			`Request to ${prefs["api-url"]}${endpoint}?${(params ?? new URLSearchParams()).toString()}`,
+		);
 		return fetch(
 			`${prefs["api-url"]}${endpoint}?${(params ?? new URLSearchParams()).toString()}`,
 			{ ...data, headers },
-		);
+		).catch((e) => {
+			throw new Error(`API Request failed: ${e}`);
+		});
 	};
 
 	const token = await LocalStorage.getItem<string>("portainer-jwt");
@@ -44,13 +49,21 @@ async function sendAPIRequest(
 
 	if (response.status === 401) {
 		await login();
+
+		response = await sendRequest(
+			// biome-ignore lint/style/noNonNullAssertion: Login either succeeded here or has thrown already
+			(await LocalStorage.getItem<string>("portainer-jwt"))!,
+		);
 	}
 
-	response = await sendRequest(
-		// biome-ignore lint/style/noNonNullAssertion: Login either succeeded here or has thrown already
-		(await LocalStorage.getItem<string>("portainer-jwt"))!,
-	);
-	if (!response.ok) throw new Error("Portainer API request failed");
+	// Only throw on status codes that are always errors
+	// Codes like 304 or 409 are valid responses to some operations but won't set response.ok
+	if ([401, 403, 500].includes(response.status)) {
+		throw new Error(
+			`Portainer API request failed with status ${response.status}`,
+		);
+	}
+
 	return response;
 }
 
@@ -60,18 +73,103 @@ async function requireEndpoint(): Promise<undefined | number> {
 		| undefined;
 }
 
-export async function getContainers() {
+export async function getContainers(): Promise<IAPIResponse<IContainerInfo[]>> {
 	const endpointId = await requireEndpoint();
 	if (!endpointId) throw new Error("No endpoint selected");
-	const data = await sendAPIRequest(
+	return await sendAPIRequest(
 		`/endpoints/${endpointId}/docker/containers/json`,
 		{},
 		new URLSearchParams({ all: "true" }),
-	).then((res) => res.json());
-	return data as IContainerInfo[];
+	).then(async (res) => {
+		return {
+			message: "",
+			isError: res.status != 200,
+			responseCode: res.status,
+			data: (await res.json()) as IContainerInfo[]
+		}
+	});
 }
 
-export async function getEnvironments() {
-	const data = await sendAPIRequest("/endpoints").then((r) => r.json());
-	return data as IEndpointInfo[];
+export async function stopContainer(
+	con: IContainerInfo,
+): Promise<IAPIResponse<void>> {
+	const endpointId = await requireEndpoint();
+	if (!endpointId) throw new Error("No endpoint selected");
+	return sendAPIRequest(
+		`/endpoints/${endpointId}/docker/containers/${con.Id}/stop`,
+		{ method: "POST" },
+	).then((res) => {
+		let message = "";
+		switch (res.status) {
+			case 204:
+				message = "Container stopped";
+				break;
+			case 304:
+				message = "Container is not running";
+				break;
+			case 404:
+				message = "Container not found";
+				break;
+			case 500:
+				message = "Server error";
+				break;
+		}
+
+		return {
+			responseCode: res.status,
+			isError: res.status !== 204,
+			message: message,
+			data: undefined,
+		};
+	});
+}
+
+export async function startContainer(
+	con: IContainerInfo,
+): Promise<IAPIResponse<void>> {
+	const endpointId = await requireEndpoint();
+	if (!endpointId) throw new Error("No endpoint selected");
+	return sendAPIRequest(
+		`/endpoints/${endpointId}/docker/containers/${con.Id}/start`,
+		{ method: "POST" },
+	).then((res) => {
+		let message = "";
+		switch (res.status) {
+			case 204:
+				message = "Container started";
+				break;
+			case 304:
+				message = "Container is already running";
+				break;
+			case 400:
+				message = "Invalid parameter";
+				break;
+			case 404:
+				message = "Container not found";
+				break;
+			case 500:
+				message = "Server error";
+				break;
+		}
+
+		return {
+			responseCode: res.status,
+			isError: res.status !== 204,
+			message: message,
+			data: undefined,
+		};
+	});
+}
+
+export async function getEnvironments(): Promise<
+	IAPIResponse<IEndpointInfo[]>
+> {
+	return await sendAPIRequest("/endpoints").then(async (r) => {
+		return {
+			message: "",
+			isError: false, // TODO
+			responseCode: r.status,
+			data: (await r.json()) as IEndpointInfo[],
+		};
+	});
 }

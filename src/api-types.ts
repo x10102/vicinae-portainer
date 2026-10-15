@@ -15,6 +15,14 @@ export interface IContainerInfo {
 	Status: string;
 }
 
+export type IAPIResponse<ContentType> = {
+	responseCode: number;
+	message: string;
+	isError: boolean;
+	// biome-ignore lint/suspicious/noConfusingVoidType: Weird type bs to account for responses with no data
+	data: [ContentType] extends [void] ? undefined : ContentType;
+};
+
 export enum EnvironmentType {
 	DockerLocal = 1,
 	Agent = 2,

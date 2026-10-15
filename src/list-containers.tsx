@@ -6,11 +6,97 @@ import {
 	Icon,
 	List,
 	showToast,
-	Toast ,
+	Toast,
+	showHUD,
+	confirmAlert,
+	PopToRootType,
 } from "@vicinae/api";
-import { useEffect, useState } from "react";
-import { getContainers } from "./api";
+import { useCallback, useEffect, useState } from "react";
+import { getContainers, startContainer, stopContainer } from "./api";
 import { ContainerState, type IContainerInfo } from "./api-types";
+
+async function handleContainerStop(container: IContainerInfo) {
+	await showToast({
+			title: "Stopping container",
+			style: Toast.Style.Animated,
+		})
+	if(await confirmAlert({title: "Confirm action", message: "The container will be stopped, continue?"})) {
+		await stopContainer(container)
+		.then((res) => {
+			console.log(res);
+			showToast({
+				title: res.message,
+				style: res.isError
+					? Toast.Style.Failure
+					: Toast.Style.Success,
+			});
+			showHUD("Container stopped", {popToRootType: PopToRootType.Immediate})
+		});
+	} else {
+		showToast({
+			title: "Action canceled",
+			style: Toast.Style.Failure
+		})
+	}
+}
+
+async function handleContainerStart(container: IContainerInfo) {
+	await showToast({
+		title: "Starting container",
+		style: Toast.Style.Animated,
+	})
+	if(await confirmAlert({title: "Confirm action", message: "The container will be started, continue?"})) {
+		await startContainer(container)
+		.then((res) => {
+			console.log(res);
+			showToast({
+				title: res.message,
+				style: res.isError
+					? Toast.Style.Failure
+					: Toast.Style.Success,
+			});
+			showHUD("Container started", {popToRootType: PopToRootType.Immediate})
+		});
+	} else {
+		showToast({
+			title: "Action canceled",
+			style: Toast.Style.Failure
+		})
+	}
+}
+
+function makeStartStopAction(container: IContainerInfo, refresh: () => void) {
+	if (container.State === ContainerState.Running) {
+		return (
+			<>
+				<Action
+					title="Stop Container"
+					icon={Icon.Stop}
+					onAction={() => handleContainerStop(container)
+									.then(() => {refresh()})
+					}
+				/>
+				<Action
+					title="Kill Container"
+					icon={Icon.Stop}
+					onAction={async () => {
+						showToast({ title: "Force stopping" });
+					}}
+				/>
+			</>
+		);
+	} else {
+		return (
+			<Action
+				title="Start Container"
+				icon={Icon.Play}
+				onAction={() => { handleContainerStart(container)
+									.then(() => {refresh()})
+				}}
+			/>
+		);
+	}
+}
 
 function containerStatusTag(container: IContainerInfo) {
 	let color: Color = Color.PrimaryText;
@@ -42,6 +128,8 @@ function containerStatusTag(container: IContainerInfo) {
 export default function ListDetail() {
 	const [containerData, setContainerData] = useState<IContainerInfo[]>([]);
 	const [isLoading, setLoading] = useState(true);
+	const [refresh, forceRefresh] = useState(true);
+	const useRefresh = useCallback(() => forceRefresh(!refresh), []);
 
 	useEffect(() => {
 		let cancelled = false;
@@ -54,7 +142,7 @@ export default function ListDetail() {
 
 			try {
 				const data = await getContainers();
-				if (!cancelled) setContainerData(data);
+				if (!cancelled) setContainerData(data.data);
 				await loadingToast.hide();
 			} catch (e) {
 				console.error(e);
@@ -70,7 +158,7 @@ export default function ListDetail() {
 		return () => {
 			cancelled = true;
 		};
-	}, []);
+	}, [refresh]);
 
 	return (
 		<List
@@ -102,19 +190,7 @@ export default function ListDetail() {
 									icon={Icon.Logstash}
 									onAction={() => showToast({ title: "Amogus" })}
 								/>
-								<Action
-									title="Stop Container"
-									icon={Icon.Stop}
-									onAction={() => showToast({ title: "Stopping" })}
-								/>
-								<Action
-									title="Kill Container"
-									icon={Icon.Stop}
-									onAction={async () => {
-										await getContainers();
-										showToast({ title: "Force stopping" });
-									}}
-								/>
+								{makeStartStopAction(container, useRefresh)}
 							</ActionPanel>
 						}
 					/>

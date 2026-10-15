@@ -7,10 +7,7 @@
 			}
 		}
 	},
-  "files": {
-    "includes": [
-      "src/**/*.{ts,tsx}",
-      "!./vicinae-env.d.ts"
-    ]
-  }
+	"files": {
+		"includes": ["src/**/*.{ts,tsx}", "!./vicinae-env.d.ts"]
+	}
 }
