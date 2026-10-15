@@ -3,9 +3,9 @@ import type { IAPIResponse, IContainerInfo, IEndpointInfo } from "./api-types";
 import { prefs } from "./prefs";
 
 const trimMessage = (str: string | undefined) => {
-	if(!str) return undefined;
-	return str.length > 70 ? str.slice(0,70) + "..." : str
-}
+	if (!str) return undefined;
+	return str.length > 70 ? `${str.slice(0, 70)}...` : str;
+};
 
 async function login(): Promise<string> {
 	return fetch(`${prefs["api-url"]}/auth`, {
@@ -80,10 +80,10 @@ export async function getContainers(): Promise<IAPIResponse<IContainerInfo[]>> {
 	).then(async (res) => {
 		return {
 			message: "",
-			isError: res.status != 200,
+			isError: res.status !== 200,
 			responseCode: res.status,
-			data: (await res.json()) as IContainerInfo[]
-		}
+			data: (await res.json()) as IContainerInfo[],
+		};
 	});
 }
 
@@ -97,7 +97,9 @@ export async function stopContainer(
 		{ method: "POST" },
 	).then(async (res) => {
 		let message = "";
-		let json = await res.json().catch(() => {return {}})
+		const json = await res.json().catch(() => {
+			return {};
+		});
 		switch (res.status) {
 			case 204:
 				message = "Container stopped";
@@ -134,7 +136,9 @@ export async function startContainer(
 		{ method: "POST" },
 	).then(async (res) => {
 		let message = "";
-		let json = await res.json().catch(() => {return {}})
+		const json = await res.json().catch(() => {
+			return {};
+		});
 		switch (res.status) {
 			case 204:
 				message = "Container started";

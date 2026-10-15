@@ -12,8 +12,8 @@
 	"commands": [
 		{
 			"name": "list-containers",
-			"title": "List running containers",
-			"description": "List all currently running containers",
+			"title": "List containers",
+			"description": "List all containers on the current endpoint",
 			"mode": "view"
 		},
 		{
@@ -49,6 +49,15 @@
 			"description": "The password for your Portainer instance",
 			"type": "password",
 			"required": true
+		},
+		{
+			"name": "action-closes",
+			"label": "Container action closes window",
+			"title": "Container action closes window",
+			"description": "Close Vicinae after starting/stopping/restarting a container",
+			"type": "checkbox",
+			"required": true,
+			"default": true
 		}
 	],
 	"scripts": {

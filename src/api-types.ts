@@ -7,12 +7,22 @@ export enum ContainerState {
 	Dead = "dead",
 }
 
+export enum ContainerHealth {
+	None = "none",
+	Healthy = "healthy",
+	Unhealthy = "unhealthy",
+	Starting = "starting",
+}
+
 export interface IContainerInfo {
 	Id: string;
 	Names: string[];
 	State: ContainerState;
 	Image: string;
 	Status: string;
+	Command: string;
+	Created: number;
+	Health: { Status: string };
 }
 
 export type IAPIResponse<ContentType> = {
