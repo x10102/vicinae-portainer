@@ -10,8 +10,9 @@ import {
 	showHUD,
 	confirmAlert,
 	PopToRootType,
+	popToRoot,
 } from "@vicinae/api";
-import { useCallback, useEffect, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import { getContainers, startContainer, stopContainer } from "./api";
 import { ContainerState, type IContainerInfo } from "./api-types";
 
@@ -31,6 +32,10 @@ async function handleContainerStop(container: IContainerInfo) {
 					: Toast.Style.Success,
 			});
 			showHUD("Container stopped", {popToRootType: PopToRootType.Immediate})
+			// Call popToRoot too after showHUD because showHUD only pops to root when the window is opened again
+			// the API polling would be running in the background the entire time
+			// not sure if this is a Vicinae bug or just me using it wrong
+			void popToRoot({clearSearchBar: true});	
 		});
 	} else {
 		showToast({
@@ -55,7 +60,10 @@ async function handleContainerStart(container: IContainerInfo) {
 					? Toast.Style.Failure
 					: Toast.Style.Success,
 			});
-			showHUD("Container started", {popToRootType: PopToRootType.Immediate})
+			if(!res.isError) {
+				showHUD("Container started", {popToRootType: PopToRootType.Immediate})
+				void popToRoot({clearSearchBar: true})
+			}
 		});
 	} else {
 		showToast({
@@ -65,16 +73,14 @@ async function handleContainerStart(container: IContainerInfo) {
 	}
 }
 
-function makeStartStopAction(container: IContainerInfo, refresh: () => void) {
+function makeStartStopAction(container: IContainerInfo) {
 	if (container.State === ContainerState.Running) {
 		return (
 			<>
 				<Action
 					title="Stop Container"
 					icon={Icon.Stop}
-					onAction={() => handleContainerStop(container)
-									.then(() => {refresh()})
-					}
+					onAction={() => handleContainerStop(container)}
 				/>
 				<Action
 					title="Kill Container"
@@ -90,9 +96,7 @@ function makeStartStopAction(container: IContainerInfo, refresh: () => void) {
 			<Action
 				title="Start Container"
 				icon={Icon.Play}
-				onAction={() => { handleContainerStart(container)
-									.then(() => {refresh()})
-				}}
+				onAction={() => handleContainerStart(container)}
 			/>
 		);
 	}
@@ -127,29 +131,34 @@ function containerStatusTag(container: IContainerInfo) {
 
 export default function ListDetail() {
 	const [containerData, setContainerData] = useState<IContainerInfo[]>([]);
-	const [isLoading, setLoading] = useState(true);
-	const [refresh, forceRefresh] = useState(true);
-	const useRefresh = useCallback(() => forceRefresh(!refresh), []);
+	const [isLoading, setLoading] = useState<boolean>(true);
+	const [refresh, forceRefresh] = useState<boolean>(true);
+	const errorShown = useRef(false);
 
 	useEffect(() => {
 		let cancelled = false;
+		let timer: ReturnType<typeof setTimeout> | undefined;
 
 		const loadData = async () => {
-			const loadingToast = await showToast({
-				title: "Loading containers...",
-				style: Toast.Style.Animated,
-			});
-
 			try {
 				const data = await getContainers();
+				errorShown.current = false;
 				if (!cancelled) setContainerData(data.data);
-				await loadingToast.hide();
 			} catch (e) {
 				console.error(e);
-				loadingToast.style = Toast.Style.Failure;
-				loadingToast.title = `Failed to load containers (Check settings)`;
+				if(!cancelled && !errorShown.current) {
+					errorShown.current = true;
+					await showToast({
+						title: `Failed to load containers (Check settings)`,
+						style: Toast.Style.Failure
+					});
+				}
+				
 			} finally {
-				if (!cancelled) setLoading(false);
+				if (!cancelled) {
+					setLoading(false);
+					timer = setTimeout(() => void loadData(), 1500);
+				}
 			}
 		};
 
@@ -157,8 +166,9 @@ export default function ListDetail() {
 
 		return () => {
 			cancelled = true;
+			clearTimeout(timer);
 		};
-	}, [refresh]);
+	}, []);
 
 	return (
 		<List
@@ -190,7 +200,7 @@ export default function ListDetail() {
 									icon={Icon.Logstash}
 									onAction={() => showToast({ title: "Amogus" })}
 								/>
-								{makeStartStopAction(container, useRefresh)}
+								{makeStartStopAction(container)}
 							</ActionPanel>
 						}
 					/>

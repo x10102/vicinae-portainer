@@ -2,6 +2,11 @@ import { LocalStorage } from "@vicinae/api";
 import type { IAPIResponse, IContainerInfo, IEndpointInfo } from "./api-types";
 import { prefs } from "./prefs";
 
+const trimMessage = (str: string | undefined) => {
+	if(!str) return undefined;
+	return str.length > 70 ? str.slice(0,70) + "..." : str
+}
+
 async function login(): Promise<string> {
 	return fetch(`${prefs["api-url"]}/auth`, {
 		method: "POST",
@@ -56,14 +61,6 @@ async function sendAPIRequest(
 		);
 	}
 
-	// Only throw on status codes that are always errors
-	// Codes like 304 or 409 are valid responses to some operations but won't set response.ok
-	if ([401, 403, 500].includes(response.status)) {
-		throw new Error(
-			`Portainer API request failed with status ${response.status}`,
-		);
-	}
-
 	return response;
 }
 
@@ -98,8 +95,9 @@ export async function stopContainer(
 	return sendAPIRequest(
 		`/endpoints/${endpointId}/docker/containers/${con.Id}/stop`,
 		{ method: "POST" },
-	).then((res) => {
+	).then(async (res) => {
 		let message = "";
+		let json = await res.json().catch(() => {return {}})
 		switch (res.status) {
 			case 204:
 				message = "Container stopped";
@@ -114,6 +112,8 @@ export async function stopContainer(
 				message = "Server error";
 				break;
 		}
+
+		message = trimMessage(json.message) ?? message;
 
 		return {
 			responseCode: res.status,
@@ -132,8 +132,9 @@ export async function startContainer(
 	return sendAPIRequest(
 		`/endpoints/${endpointId}/docker/containers/${con.Id}/start`,
 		{ method: "POST" },
-	).then((res) => {
+	).then(async (res) => {
 		let message = "";
+		let json = await res.json().catch(() => {return {}})
 		switch (res.status) {
 			case 204:
 				message = "Container started";
@@ -151,6 +152,8 @@ export async function startContainer(
 				message = "Server error";
 				break;
 		}
+
+		message = trimMessage(json.message) ?? message;
 
 		return {
 			responseCode: res.status,
