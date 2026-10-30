@@ -14,15 +14,22 @@ import {
 	useNavigation,
 } from "@vicinae/api";
 import { useEffect, useRef, useState } from "react";
-import { getContainers, startContainer, stopContainer } from "./api";
+import { getContainers, restartContainer, startContainer, stopContainer } from "./api";
 import {
 	ContainerHealth,
 	ContainerState,
 	type IContainerInfo,
+	type IAPIResponse,
 } from "./api-types";
 import { prefs } from "./prefs";
 
 const uwu = "amogus\n\namogus\namogus\n".repeat(40);
+
+interface ContainerActionMessages {
+	confirmMessage: string;
+	processingMessage: string;
+	successMessage: string;
+};
 
 const unixDateToString = (ts: number) => {
 	return new Date(ts * 1000).toLocaleString();
@@ -48,62 +55,34 @@ const LogView = () => {
 	);
 };
 
-async function handleContainerStop(container: IContainerInfo) {
+async function handleContainerAction(
+	container: IContainerInfo,
+	messages: ContainerActionMessages,
+	apiCallback: (container: IContainerInfo) => Promise<IAPIResponse<void>>,
+) {
 	await showToast({
-		title: "Stopping container",
+		title: messages.processingMessage,
 		style: Toast.Style.Animated,
 	});
 	if (
 		await confirmAlert({
 			title: "Confirm action",
-			message: "The container will be stopped, continue?",
+			message: messages.confirmMessage,
 		})
 	) {
-		await stopContainer(container).then((res) => {
+		await apiCallback(container).then((res) => {
 			console.log(res);
 			showToast({
 				title: res.message,
 				style: res.isError ? Toast.Style.Failure : Toast.Style.Success,
 			});
 			if (!res.isError && prefs["action-closes"]) {
-				showHUD("Container stopped", {
+				showHUD(messages.successMessage, {
 					popToRootType: PopToRootType.Immediate,
 				});
 				// Call popToRoot too after showHUD because showHUD only pops to root when the window is opened again
 				// the API polling would be running in the background the entire time
 				// not sure if this is a Vicinae bug or just me using it wrong
-				void popToRoot({ clearSearchBar: true });
-			}
-		});
-	} else {
-		showToast({
-			title: "Action canceled",
-			style: Toast.Style.Failure,
-		});
-	}
-}
-
-async function handleContainerStart(container: IContainerInfo) {
-	await showToast({
-		title: "Starting container",
-		style: Toast.Style.Animated,
-	});
-	if (
-		await confirmAlert({
-			title: "Confirm action",
-			message: "The container will be started, continue?",
-		})
-	) {
-		await startContainer(container).then((res) => {
-			console.log(res);
-			showToast({
-				title: res.message,
-				style: res.isError ? Toast.Style.Failure : Toast.Style.Success,
-			});
-			if (!res.isError && prefs["action-closes"]) {
-				showHUD("Container started", {
-					popToRootType: PopToRootType.Immediate,
-				});
 				void popToRoot({ clearSearchBar: true });
 			}
 		});
@@ -122,7 +101,28 @@ function makeStartStopAction(container: IContainerInfo) {
 				<Action
 					title="Stop Container"
 					icon={Icon.Stop}
-					onAction={() => handleContainerStop(container)}
+					onAction={() => handleContainerAction(
+						container,
+						{ 
+							processingMessage: "Stopping container",
+							confirmMessage: "The container will be stopped, continue?",
+							successMessage: "Container stopped"
+						},
+						stopContainer
+					)}
+				/>
+				<Action
+					title="Restart Container"
+					icon={Icon.Pause}
+					onAction={() => handleContainerAction(
+						container,
+						{ 
+							processingMessage: "Restarting container",
+							confirmMessage: "The container will be restarted, continue?",
+							successMessage: "Container restarted"
+						},
+						restartContainer
+					)}
 				/>
 				<Action
 					title="Kill Container"
@@ -138,7 +138,15 @@ function makeStartStopAction(container: IContainerInfo) {
 			<Action
 				title="Start Container"
 				icon={Icon.Play}
-				onAction={() => handleContainerStart(container)}
+				onAction={() => handleContainerAction(
+						container,
+						{ 
+							processingMessage: "Starting container",
+							confirmMessage: "The container will be started, continue?",
+							successMessage: "Container started"
+						},
+						startContainer
+					)}
 			/>
 		);
 	}

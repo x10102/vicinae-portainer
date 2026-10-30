@@ -126,6 +126,42 @@ export async function stopContainer(
 	});
 }
 
+export async function restartContainer(
+	con: IContainerInfo,
+): Promise<IAPIResponse<void>> {
+	const endpointId = await requireEndpoint();
+	if (!endpointId) throw new Error("No endpoint selected");
+	return sendAPIRequest(
+		`/endpoints/${endpointId}/docker/containers/${con.Id}/restart`,
+		{ method: "POST" },
+	).then(async (res) => {
+		let message = "";
+		const json = await res.json().catch(() => {
+			return {};
+		});
+		switch (res.status) {
+			case 204:
+				message = "Container restarting";
+				break;
+			case 404:
+				message = "Container not found";
+				break;
+			case 500:
+				message = "Server error";
+				break;
+		}
+
+		message = trimMessage(json.message) ?? message;
+
+		return {
+			responseCode: res.status,
+			isError: res.status !== 204,
+			message: message,
+			data: undefined,
+		};
+	});
+}
+
 export async function startContainer(
 	con: IContainerInfo,
 ): Promise<IAPIResponse<void>> {
