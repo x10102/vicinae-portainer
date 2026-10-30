@@ -12,6 +12,7 @@ import {
 	showToast,
 	Toast,
 	useNavigation,
+	LocalStorage,
 } from "@vicinae/api";
 import { useEffect, useRef, useState } from "react";
 import { getContainers, restartContainer, startContainer, stopContainer } from "./api";
@@ -34,6 +35,10 @@ interface ContainerActionMessages {
 const unixDateToString = (ts: number) => {
 	return new Date(ts * 1000).toLocaleString();
 };
+
+const makePortainerLink = (container: IContainerInfo, envId: number) => {
+	return `${prefs["api-url"].slice(0, -3)}#!/${envId}/docker/containers/${container.Id}`
+}
 
 const LogView = () => {
 	const { pop } = useNavigation();
@@ -204,6 +209,7 @@ function containerHealthTag(container: IContainerInfo) {
 export default function ListDetail() {
 	const [containerData, setContainerData] = useState<IContainerInfo[]>([]);
 	const [isLoading, setLoading] = useState<boolean>(true);
+	const [envId, setEnvId] = useState<number | undefined>(0);
 	const [_refresh, _forceRefresh] = useState<boolean>(true);
 	const errorShown = useRef(false);
 
@@ -215,7 +221,10 @@ export default function ListDetail() {
 			try {
 				const data = await getContainers();
 				errorShown.current = false;
-				if (!cancelled) setContainerData(data.data);
+				if (!cancelled) {
+					setEnvId(await LocalStorage.getItem('portainer-endpoint') as number)
+					setContainerData(data.data);
+				}
 			} catch (e) {
 				console.error(e);
 				if (!cancelled && !errorShown.current) {
@@ -289,6 +298,7 @@ export default function ListDetail() {
 									target={<LogView></LogView>}
 								/>
 								{makeStartStopAction(container)}
+								<Action.OpenInBrowser icon={Icon.Globe01} title="Open in Portainer" url={makePortainerLink(container, envId ?? 0)}/>
 							</ActionPanel>
 						}
 					/>
